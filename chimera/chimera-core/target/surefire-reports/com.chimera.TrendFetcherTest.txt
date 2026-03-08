@@ -1,0 +1,12 @@
+-------------------------------------------------------------------------------
+Test set: com.chimera.TrendFetcherTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.016 s <<< FAILURE! -- in com.chimera.TrendFetcherTest
+com.chimera.TrendFetcherTest.fetchTrendsShouldMatchTechnicalSpecInputOutputContract -- Time elapsed: 0.006 s <<< ERROR!
+java.lang.UnsupportedOperationException: TrendFetcher.fetchTrends is not implemented yet.
+	at com.chimera.TrendFetcher.fetchTrends(TrendFetcher.java:12)
+	at com.chimera.TrendFetcherTest.fetchTrendsShouldMatchTechnicalSpecInputOutputContract(TrendFetcherTest.java:56)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
