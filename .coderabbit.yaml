@@ -1,0 +1,65 @@
+version: 1
+
+ai_reviewer:
+  name: Chimera Guardian
+  description: >
+    AI reviewer enforcing Project Chimera's architectural, safety, and performance
+    constraints on all incoming changes.
+
+review_policy:
+  require_review: true
+  block_on_violations: true
+
+checks:
+  spec_alignment:
+    enabled: true
+    description: >
+      Ensure every change is aligned with specs/technical.md and other specs,
+      especially API contracts (e.g., TrendFetcher) and database schemas.
+    guidance: >
+      For any modified or new code, verify that request/response shapes, DTOs,
+      and persistence logic match the definitions in specs/technical.md.
+      Flag mismatches between code and spec, missing fields, or untracked changes
+      to the contract.
+
+  java_thread_safety:
+    enabled: true
+    description: >
+      Enforce thread-safe practices in Java 21 code.
+    guidance: >
+      Prefer immutable records for data transfer, final fields where possible,
+      and avoid shared mutable state across threads. Flag uses of unsynchronized
+      mutable statics, non-thread-safe collections shared between threads, or
+      ad-hoc locking without clear ownership. Encourage designs that make
+      concurrency explicit and safe.
+
+  security:
+    enabled: true
+    description: >
+      Prevent insecure patterns and leakage of secrets.
+    guidance: >
+      Flag any hardcoded credentials, API keys, secrets, or tokens in source
+      files, tests, or configuration. Highlight insecure HTTP calls carrying
+      sensitive data, weak error handling that might expose secrets, and
+      missing validation or sanitization of external inputs. Prefer environment
+      variables or secret stores over inline secrets.
+
+  virtual_threads:
+    enabled: true
+    description: >
+      Encourage appropriate use of Virtual Threads and StructuredTaskScope in Java 21.
+    guidance: >
+      When new blocking I/O or concurrent workflows are introduced, check whether
+      they run on platform threads unnecessarily. Recommend Virtual Threads
+      (e.g., Thread.ofVirtual()) and StructuredTaskScope where appropriate,
+      especially for agent orchestration and high-concurrency operations.
+      Flag long-running blocking operations on the main or shared thread pools
+      without justification.
+
+reporting:
+  summarize_findings: true
+  include_files:
+    - "chimera/chimera-core/**"
+    - "specs/**"
+    - "skills/**"
+
