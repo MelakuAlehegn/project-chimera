@@ -1,0 +1,100 @@
+---
+alwaysApply: true
+---
+## Project Context
+
+This is Project Chimera, an autonomous influencer system.
+
+- **System overview**: Human collaborators orchestrate high-level goals, Manager agents plan and coordinate work, Worker agents execute tasks, and Skills wrap concrete capabilities exposed via MCP tools.
+- **End-to-end flow**: Human → Manager Agents → Worker Agents → Skills → MCP Tools.
+- **Core mission**: Discover trends, generate content, verify quality, and publish to platforms autonomously, while remaining traceable, testable, and spec-driven.
+
+---
+
+## The Prime Directive
+
+**NEVER generate code without checking the `specs/` directory first.**
+
+- **Primary rule**: Before proposing or writing any implementation, the assistant must review all relevant documents in `specs/` (for example `technical.md`, `openclaw_integration.md`, and any future spec files).
+- **Conflict resolution**: If a request appears to conflict with the `specs/` directory, the specifications in `specs/` take precedence. The assistant should call out the conflict explicitly and propose a resolution.
+- **Spec drift**: If behavior in the existing codebase seems to diverge from `specs/`, the assistant must (1) highlight the discrepancy and (2) align new changes with `specs/` unless the user explicitly instructs otherwise.
+
+---
+
+## Java-Specific Directives
+
+- **Java version**
+  - **Use Java 21+ features** where appropriate (e.g., records, pattern matching, sealed types, switch expressions, virtual threads if relevant to the module).
+  - Prefer modern idioms over legacy patterns when updating or creating code.
+
+- **Data transfer and domain boundaries**
+  - **Use `record` types for immutable DTOs** that are passed between Planner, Worker, and Judge agents, and across module boundaries where immutability and clarity are important.
+  - Keep DTOs free of business logic; they should express intent and data shape, not behavior.
+
+- **Testing**
+  - **Use JUnit 5 for all tests.**
+  - Prefer expressive, small, focused tests (e.g., parameterized tests, nested tests) over large monolithic test methods.
+  - Use clear naming conventions for test classes and methods that reflect behavior and scenarios.
+
+- **Architecture and design**
+  - **Follow clean architecture and modular design.**
+    - Separate domain, application, infrastructure, and interface concerns.
+    - Keep core domain logic independent of frameworks and I/O side effects.
+    - Use interfaces and dependency inversion to decouple modules.
+  - Respect and reinforce existing module boundaries in `chimera-core` and related subprojects.
+  - Avoid introducing cross-module entanglement; prefer well-defined ports/adapters and clear contracts.
+
+---
+
+## Traceability Requirement
+
+Before generating any code:
+
+1. **Explain the implementation plan**
+   - Provide a brief, structured plan describing:
+     - What will be implemented or changed.
+     - Which components, modules, or layers are involved.
+     - How the change fits into the existing architecture and agent workflow (Planner, Worker, Judge, Skills, MCP tools).
+
+2. **Reference relevant specifications**
+   - Explicitly list the `specs/` files and sections used (e.g., `specs/technical.md`, `specs/openclaw_integration.md`).
+   - Summarize the key requirements from those specs that drive the implementation.
+   - If no spec appears to cover the request, state this clearly and propose how to align with the current architecture anyway.
+
+3. **Confirm assumptions**
+   - Clearly enumerate assumptions about:
+     - APIs, data contracts, and module boundaries.
+     - External systems or platforms (e.g., social media APIs, OpenClaw integration).
+     - Non-obvious behavior or inferred requirements.
+   - Ask the user to correct any critical assumptions if they appear risky, but do not block progress on minor details; proceed with well-documented defaults.
+
+Traceability means that any code or architectural change can be traced back to:
+- A clear plan.
+- Specific specs in `specs/`.
+- Explicit assumptions and rationale.
+
+---
+
+## Development Workflow
+
+- **Small, modular implementations**
+  - Always **prefer small, modular implementations** over large, monolithic changes.
+  - Break work into cohesive steps that can be reviewed and tested independently.
+  - When adding new capabilities for agents, encapsulate them in well-defined modules or Skills and keep responsibilities narrow.
+
+- **Testing discipline**
+  - **Write tests before implementations where possible** (TDD or at least test-first for new behaviors).
+  - For existing code, add or extend tests to cover new behavior before or alongside refactors.
+  - Ensure tests document behavior and edge cases for Planner, Worker, and Judge interactions, as well as Skill/MCP integrations.
+
+- **Incremental system evolution**
+  - **Avoid generating large systems in a single step.**
+  - Prefer iterative refinement:
+    - Start with a minimal, spec-compliant slice.
+    - Validate via tests and, when appropriate, through agent workflows.
+    - Extend or refactor in subsequent, clearly scoped steps.
+  - When a user asks for a complex feature, propose a phased plan and implement it incrementally, keeping each step reviewable and traceable.
+
+- **Respect for context and tools**
+  - When in doubt, re-check the `specs/` directory and any existing rules files before making major design decisions.
+  - Use MCP tools and Skills in ways that preserve observability, error handling, and debuggability for the agent ecosystem.
