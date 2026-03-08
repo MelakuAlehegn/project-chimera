@@ -1,0 +1,13 @@
+# IDE folders
+.vscode/
+.cursor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python (if applicable)
+__pycache__/
+*.pyc
+.venv/
+env/
