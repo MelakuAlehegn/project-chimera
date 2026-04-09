@@ -1,87 +1,99 @@
 # Project Chimera
 
-**An autonomous influencer network where AI agents create and distribute social media content.**
+*An autonomous influencer network where AI agents discover trends, generate content, verify quality, and publish to social media platforms -- all orchestrated via a Java 21 AI Swarm with MCP tool traceability.*
 
 ---
 
-## Project Overview
-
-Project Chimera is a **Java 21 AI Swarm Orchestrator**. It coordinates Manager and Worker agents that discover trends, generate content, verify quality, and publish to platforms. The architecture follows:
-
-**Human → Manager Agents → Worker Agents → Skills → MCP Tools**
-
-The codebase is built with **Maven** and **Java 21**, using **Records** for immutable data and **JUnit 5** for tests. Specs in `specs/` define contracts; skills in `skills/` define reusable capabilities; and the core module `chimera/chimera-core` holds the implementation surface that agents and CI/CD use.
-
----
-
-## Architecture Status: Red (TDD) Phase
-
-The project is currently in the **"Red" phase** of Test-Driven Development:
-
-- **Tests exist and fail by design.** JUnit 5 tests in `chimera/chimera-core/src/test/java/com/chimera/` define the implementation contract (e.g. `TrendFetcherTest`, `ContentGeneratorTest`).
-- **Implementation "slots" are filled with minimal types** (records, interfaces, exceptions) so the project **compiles**; the tests **fail** because behavior is not yet implemented.
-- This is intentional: the failing tests are the **orchestrator’s goal posts**. Any human or AI agent pushing code must satisfy these tests before the build turns green. Until then, **a red test run is expected** and indicates that the contract is enforced and the next step is to implement the behavior under test.
-
----
-
-## Automation
-
-All commands run against `chimera/chimera-core` via the root **Makefile**. Use these from your terminal or from CI/CD:
-
-| Command       | Purpose |
-|--------------|--------|
-| `make setup` | Resolve dependencies: `mvn clean install -DskipTests` for chimera-core. |
-| `make test`  | Run the JUnit 5 test suite. In the Red phase, tests fail by design. |
-| `make lint`  | Run code quality checks (e.g. `mvn checkstyle:check`) for Git hygiene. |
-| `make build` | Build the JAR: `mvn package -DskipTests`. |
-| `make help`  | List available Make targets. |
-
-**Quick start:**
+## Quick Start
 
 ```bash
-make setup   # install dependencies
-make test    # run tests (expect failures in Red phase)
-make build   # produce JAR without running tests
+make setup       # Resolve dependencies (mvn clean install -DskipTests)
+make test        # Run JUnit 5 tests (expect failures -- TDD Red phase)
+make lint        # Run Checkstyle code quality checks
+make build       # Build JAR (mvn package -DskipTests)
+make spec-check  # Verify code aligns with specs/
+make docker-test # Build and run tests inside Docker
+```
+
+Requires: **Java 21+** and **Maven 3.8+** (Docker optional for `make docker-test`)
+
+---
+
+## Architecture
+
+```
+Human (Safety Layer)
+  -> Manager Agents (plan, coordinate)
+    -> Worker Agents (execute skills)
+      -> Judge Agents (verify quality)
+        -> Skills (TrendFetcher, ContentGenerator, ContentVerifier, PlatformPublisher)
+          -> MCP Tools (external API bridges)
 ```
 
 ---
 
-## Governance Layer
+## Why Tests Fail (Intentional)
 
-Every change is guarded by:
+This repo is in the **TDD "Red" phase**. Tests define the implementation contract but the behavior is not yet implemented:
 
-1. **GitHub Actions CI** (`.github/workflows/main.yml`)
-   - Runs on **push** and **pull_request** to `main`.
-   - Uses **Java 21 (Temurin)** on `ubuntu-latest`.
-   - Executes `make setup` and `make test`. The pipeline fails if tests fail, enforcing the TDD contract.
+- `TrendFetcherTest` -- asserts the TrendFetcher API contract (records, input/output shapes). Fails because `fetchTrends()` throws `UnsupportedOperationException`.
+- `SkillsInterfaceTest` -- asserts that skill interfaces (ContentGenerator) accept correct parameters and declare `BudgetExceededException`. All reflective assertions pass; this validates the type contracts are in place.
+- `ContentGeneratorTest` -- same skill interface tests (original file retained alongside SkillsInterfaceTest).
 
-2. **CodeRabbit AI Review** (`.coderabbit.yaml`)
-   - The **Chimera Guardian** AI reviewer enforces:
-     - **Spec alignment**: Code must match `specs/technical.md` and related specs (API contracts, schemas).
-     - **Java thread safety**: Prefer Records, final fields, avoid shared mutable state.
-     - **Security**: No hardcoded credentials or insecure API patterns.
-     - **Virtual Threads**: Prefer Virtual Threads and `StructuredTaskScope` where appropriate instead of blocking platform threads.
+The failing tests are the **goal posts**: implement the behavior to turn them green.
 
-Together, CI and AI review provide a **black-box audit trail**: every line of code is tested by CI and reviewed against the Chimera policy before merge.
+---
+
+## Repository Structure
+
+```
+project_chimera/
+|-- specs/                          # Specifications (source of truth)
+|   |-- _meta.md                    # Vision, constraints, non-goals
+|   |-- functional.md               # User stories (trends, content, publishing, governance)
+|   |-- technical.md                # API contracts (JSON shapes), database ERD
+|   |-- openclaw_integration.md     # OpenClaw agent network protocol (bonus)
+|
+|-- skills/                         # Agent skill contracts (4 skills)
+|   |-- skill_trend_fetcher/        # Fetch trending topics
+|   |-- skill_content_generator/    # Generate video scripts
+|   |-- skill_content_verifier/     # Verify content safety/quality
+|   |-- skill_platform_publisher/   # Publish to platforms
+|
+|-- chimera/chimera-core/           # Maven module (Java 21, JUnit 5)
+|   |-- pom.xml                     # Build config (Java 21, JUnit 5, Checkstyle)
+|   |-- src/main/java/com/chimera/  # Records, interfaces, exceptions (stubs)
+|   |-- src/test/java/com/chimera/  # JUnit 5 test sources
+|
+|-- .cursor/rules/                  # AI agent rules
+|   |-- chimera_rules.mdc           # Prime Directive, Java directives, traceability
+|
+|-- scripts/spec-check.sh            # Spec-vs-code alignment checker
+|-- Dockerfile                       # Containerized test runner
+|-- CLAUDE.md                        # Claude Code agent rules (equivalent to .cursor/rules)
+|-- .coderabbit.yaml                 # AI review policy (spec alignment, thread safety, security)
+|-- .github/workflows/main.yml       # CI: make setup -> make lint -> make test
+|-- Makefile                         # setup, test, lint, build, spec-check, docker-test
+```
+
+---
+
+## Governance
+
+1. **GitHub Actions CI** -- runs `make setup`, `make lint`, and `make test` on every push and PR to `main`. Uses Java 21 (Temurin).
+2. **CodeRabbit AI Review** -- enforces spec alignment, Java thread safety, security vulnerability checks, and virtual thread best practices.
+3. **Agent Rules** -- `.cursor/rules/chimera_rules.mdc` and `CLAUDE.md` ensure AI agents check specs before generating code.
 
 ---
 
 ## Tech Stack
 
-- **Java 21** — Records for immutable DTOs, Virtual Threads and Structured Concurrency where applicable.
-- **Maven** — Build and dependency management; core module: `chimera/chimera-core`.
-- **JUnit 5** — All tests; defines the implementation contract in the Red phase.
-- **Specs** — `specs/technical.md`, `specs/openclaw_integration.md`, etc., define APIs and architecture.
-- **Skills** — Reusable capabilities (e.g. TrendFetcher, ContentGenerator) under `skills/`.
-
----
-
-## Why the Build "Fails"
-
-If you run `make test` and see **failures**, that is expected in the current phase:
-
-- The tests describe *what* the system should do; the implementations are minimal stubs.
-- **Red** means the contract is in place; **Green** will come when behavior is implemented to satisfy the tests.
-- This keeps the bar clear for both humans and AI agents: **pass the tests and pass the AI review** to merge.
-
-For a green build, implement the behavior required by the failing tests (and satisfy lint and CodeRabbit). Until then, the failing tests are the orchestrator’s goal posts.
+| Component | Choice |
+|---|---|
+| Language | Java 21 (records, virtual threads, pattern matching) |
+| Build | Maven |
+| Tests | JUnit 5 |
+| Lint | Checkstyle (via maven-checkstyle-plugin) |
+| CI | GitHub Actions |
+| AI Review | CodeRabbit |
+| Data Transfer | Immutable Java records |

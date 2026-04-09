@@ -32,6 +32,9 @@ jobs:
       - name: Setup project (resolve dependencies, skip tests)
         run: make setup
 
+      - name: Lint check
+        run: make lint
+
       - name: Run tests
         run: make test
 
