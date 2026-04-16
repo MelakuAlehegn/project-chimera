@@ -90,4 +90,30 @@ class SkillsInterfaceTest {
         assertFalse(RuntimeException.class.isAssignableFrom(BudgetExceededException.class),
                 "BudgetExceededException must NOT be a RuntimeException -- budget enforcement is a checked contract.");
     }
+
+    // --- ContentGenerator behavior (using MockContentGenerator) ---
+
+    @Test
+    void generateShouldReturnContentMatchingRequestTopic() throws BudgetExceededException {
+        ContentGenerator generator = new MockContentGenerator();
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 5.00);
+
+        GeneratedContent result = generator.generate(request);
+
+        assertNotNull(result.contentId(), "contentId must not be null.");
+        assertNotNull(result.script(), "script must not be null.");
+        assertNotNull(result.caption(), "caption must not be null.");
+        assertNotNull(result.targetPlatform(), "targetPlatform must not be null.");
+        assertTrue(result.script().contains("morning workout routine"),
+                "Script should reference the requested topic.");
+    }
+
+    @Test
+    void generateShouldThrowBudgetExceededForInsufficientBudget() {
+        ContentGenerator generator = new MockContentGenerator();
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 0.50);
+
+        assertThrows(BudgetExceededException.class, () -> generator.generate(request),
+                "generate() must throw BudgetExceededException when budget is insufficient.");
+    }
 }

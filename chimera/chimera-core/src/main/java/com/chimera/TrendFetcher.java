@@ -1,15 +1,12 @@
 package com.chimera;
 
 /**
- * Empty-slot implementation for fetching trends.
+ * Skill interface for fetching trending topics from social media platforms.
  *
- * This class exists so that tests compile; behaviour is intentionally
- * unimplemented and should be provided in a later TDD step.
+ * Implementations provide platform-specific logic (e.g., TikTok, Instagram).
+ * See specs/technical.md for the API contract.
  */
-public class TrendFetcher {
+public interface TrendFetcher {
 
-    public TrendResponse fetchTrends(TrendRequest request) {
-        throw new UnsupportedOperationException("TrendFetcher.fetchTrends is not implemented yet.");
-    }
+    TrendResponse fetchTrends(TrendRequest request);
 }
-

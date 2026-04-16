@@ -50,7 +50,7 @@ class TrendFetcherTest {
     @Test
     void fetchTrendsShouldMatchTechnicalSpecInputOutputContract() {
         // Input should match specs/technical.md: { platform, category }
-        TrendFetcher client = new TrendFetcher();
+        TrendFetcher client = new MockTrendFetcher();
         TrendRequest request = new TrendRequest("tiktok", "fitness");
 
         TrendResponse response = client.fetchTrends(request);
