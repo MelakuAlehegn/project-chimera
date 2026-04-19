@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.trend;
 
 import java.util.List;
 
@@ -8,4 +8,3 @@ import java.util.List;
  */
 public record TrendResponse(String platform, String category, List<Trend> trends) {
 }
-

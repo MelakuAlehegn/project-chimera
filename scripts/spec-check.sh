@@ -4,7 +4,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="$ROOT/chimera/chimera-core/src/main/java/com/chimera"
+BASE="$ROOT/chimera/chimera-core/src/main/java/com/chimera"
+TREND="$BASE/trend"
+CONTENT="$BASE/content"
+VERIFIER="$BASE/verifier"
 SPECS="$ROOT/specs"
 PASS=0
 FAIL=0
@@ -23,12 +26,18 @@ check() {
 echo "=== Spec-Check: Code vs specs/ alignment ==="
 echo ""
 
-# --- 1. Required source files exist ---
+# --- 1. Required source files exist (in their skill packages) ---
 echo "1. Required source files"
-for f in Trend.java TrendRequest.java TrendResponse.java TrendFetcher.java \
-         ContentGenerator.java ContentGenerationRequest.java GeneratedContent.java \
-         BudgetExceededException.java; do
-    check "$f exists" "$([ -f "$SRC/$f" ] && echo true || echo false)"
+for f in Trend.java TrendRequest.java TrendResponse.java TrendFetcher.java MockTrendFetcher.java; do
+    check "trend/$f exists" "$([ -f "$TREND/$f" ] && echo true || echo false)"
+done
+for f in ContentGenerator.java ContentGenerationRequest.java GeneratedContent.java \
+         BudgetExceededException.java MockContentGenerator.java; do
+    check "content/$f exists" "$([ -f "$CONTENT/$f" ] && echo true || echo false)"
+done
+for f in ContentVerifier.java VerificationRequest.java VerificationResult.java \
+         VerificationIssue.java Verdict.java MockContentVerifier.java; do
+    check "verifier/$f exists" "$([ -f "$VERIFIER/$f" ] && echo true || echo false)"
 done
 
 echo ""
@@ -36,42 +45,43 @@ echo ""
 # --- 2. Records match specs/technical.md field names ---
 echo "2. Record field alignment with specs/technical.md"
 
-# Trend(String topic, double engagementScore)
 check "Trend has 'topic' field" \
-    "$(grep -q 'String topic' "$SRC/Trend.java" && echo true || echo false)"
+    "$(grep -q 'String topic' "$TREND/Trend.java" && echo true || echo false)"
 check "Trend has 'engagementScore' field" \
-    "$(grep -q 'double engagementScore' "$SRC/Trend.java" && echo true || echo false)"
+    "$(grep -q 'double engagementScore' "$TREND/Trend.java" && echo true || echo false)"
 check "Trend is a record" \
-    "$(grep -q 'public record Trend' "$SRC/Trend.java" && echo true || echo false)"
+    "$(grep -q 'public record Trend' "$TREND/Trend.java" && echo true || echo false)"
 
-# TrendRequest(String platform, String category)
 check "TrendRequest has 'platform' field" \
-    "$(grep -q 'String platform' "$SRC/TrendRequest.java" && echo true || echo false)"
+    "$(grep -q 'String platform' "$TREND/TrendRequest.java" && echo true || echo false)"
 check "TrendRequest has 'category' field" \
-    "$(grep -q 'String category' "$SRC/TrendRequest.java" && echo true || echo false)"
+    "$(grep -q 'String category' "$TREND/TrendRequest.java" && echo true || echo false)"
 
-# TrendResponse(String platform, String category, List<Trend> trends)
 check "TrendResponse has 'trends' field" \
-    "$(grep -q 'trends' "$SRC/TrendResponse.java" && echo true || echo false)"
+    "$(grep -q 'trends' "$TREND/TrendResponse.java" && echo true || echo false)"
 
-# ContentGenerationRequest includes characterReferenceId
 check "ContentGenerationRequest has 'characterReferenceId'" \
-    "$(grep -q 'characterReferenceId' "$SRC/ContentGenerationRequest.java" && echo true || echo false)"
+    "$(grep -q 'characterReferenceId' "$CONTENT/ContentGenerationRequest.java" && echo true || echo false)"
 
-# GeneratedContent has contentId, script, caption, targetPlatform
 for field in contentId script caption targetPlatform; do
     check "GeneratedContent has '$field'" \
-        "$(grep -q "$field" "$SRC/GeneratedContent.java" && echo true || echo false)"
+        "$(grep -q "$field" "$CONTENT/GeneratedContent.java" && echo true || echo false)"
 done
 
 echo ""
 
 # --- 3. Interface contracts ---
 echo "3. Interface contracts"
+check "TrendFetcher is an interface" \
+    "$(grep -q 'public interface TrendFetcher' "$TREND/TrendFetcher.java" && echo true || echo false)"
 check "ContentGenerator is an interface" \
-    "$(grep -q 'public interface ContentGenerator' "$SRC/ContentGenerator.java" && echo true || echo false)"
+    "$(grep -q 'public interface ContentGenerator' "$CONTENT/ContentGenerator.java" && echo true || echo false)"
 check "ContentGenerator.generate() declares BudgetExceededException" \
-    "$(grep -q 'throws BudgetExceededException' "$SRC/ContentGenerator.java" && echo true || echo false)"
+    "$(grep -q 'throws BudgetExceededException' "$CONTENT/ContentGenerator.java" && echo true || echo false)"
+check "ContentVerifier is an interface" \
+    "$(grep -q 'public interface ContentVerifier' "$VERIFIER/ContentVerifier.java" && echo true || echo false)"
+check "Verdict is an enum" \
+    "$(grep -q 'public enum Verdict' "$VERIFIER/Verdict.java" && echo true || echo false)"
 
 echo ""
 

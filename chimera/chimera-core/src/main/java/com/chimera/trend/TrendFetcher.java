@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.trend;
 
 /**
  * Skill interface for fetching trending topics from social media platforms.

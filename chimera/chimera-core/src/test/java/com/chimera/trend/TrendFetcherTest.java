@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.trend;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,16 +8,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * JUnit 5 tests for the TrendFetcher component as specified in specs/technical.md.
- *
- * These tests are intentionally written before any implementation exists.
- * They will fail to compile or run until the corresponding records and
- * TrendFetcher implementation are created.
  */
 class TrendFetcherTest {
 
     @Test
     void trendRecordShouldBeJavaRecordAndMatchSpecContract() {
-        // Expect a Java 21 record representing a single trend item
         Class<?> trendClass = Trend.class;
 
         assertTrue(trendClass.isRecord(), "Trend must be defined as a Java 21 record for immutability.");
@@ -34,7 +29,6 @@ class TrendFetcherTest {
 
     @Test
     void trendResponseRecordShouldExposePlatformCategoryAndTrendsList() {
-        // Expect a record that reflects the TrendFetcher API contract from specs/technical.md
         Class<?> responseClass = TrendResponse.class;
 
         assertTrue(responseClass.isRecord(), "TrendResponse must be defined as a Java 21 record.");
@@ -49,7 +43,6 @@ class TrendFetcherTest {
 
     @Test
     void fetchTrendsShouldMatchTechnicalSpecInputOutputContract() {
-        // Input should match specs/technical.md: { platform, category }
         TrendFetcher client = new MockTrendFetcher();
         TrendRequest request = new TrendRequest("tiktok", "fitness");
 
@@ -68,4 +61,3 @@ class TrendFetcherTest {
                 "Trend.engagementScore should be normalized between 0.0 and 1.0.");
     }
 }
-

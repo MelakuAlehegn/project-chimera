@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.trend;
 
 /**
  * Request parameters for fetching trends.
@@ -8,4 +8,3 @@ package com.chimera;
  */
 public record TrendRequest(String platform, String category) {
 }
-

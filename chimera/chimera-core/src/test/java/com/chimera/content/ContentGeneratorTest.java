@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,13 +8,14 @@ import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * JUnit 5 tests describing the expected interface for a ContentGenerator skill.
+ * Contract and behavior tests for the ContentGenerator skill.
  *
- * These tests are written ahead of implementation and will fail to compile
- * or run until the ContentGenerator interface, request/response records,
- * and BudgetExceededException are created.
+ * Structural tests use reflection to verify the type system matches specs/technical.md.
+ * Behavior tests exercise MockContentGenerator to verify the contract is honored.
  */
 class ContentGeneratorTest {
+
+    // --- Structural contract (via reflection) ---
 
     @Test
     void contentGeneratorShouldBeAnInterfaceWithGenerateMethod() {
@@ -38,7 +39,6 @@ class ContentGeneratorTest {
 
     @Test
     void contentGenerationRequestShouldIncludeCharacterConsistencyParameters() {
-        // Ensure Character Consistency is explicitly modeled via a character_reference_id field
         Class<?> requestClass = ContentGenerationRequest.class;
 
         assertTrue(requestClass.isRecord(), "ContentGenerationRequest must be a Java 21 record.");
@@ -51,7 +51,7 @@ class ContentGeneratorTest {
     }
 
     @Test
-    void generateShouldSurfaceBudgetExceededExceptionFromResourceGovernor() {
+    void generateShouldDeclareBudgetExceededException() {
         Class<?> generatorInterface = ContentGenerator.class;
 
         Method generate = Arrays.stream(generatorInterface.getMethods())
@@ -67,7 +67,6 @@ class ContentGeneratorTest {
 
     @Test
     void generatedContentRecordShouldMatchOutputContract() {
-        // Validate high-level shape of the GeneratedContent result used by agents
         Class<?> resultClass = GeneratedContent.class;
 
         assertTrue(resultClass.isRecord(), "GeneratedContent must be a Java 21 record.");
@@ -80,5 +79,38 @@ class ContentGeneratorTest {
         assertTrue(names.contains("caption"), "GeneratedContent must include caption.");
         assertTrue(names.contains("targetPlatform"), "GeneratedContent must include targetPlatform.");
     }
-}
 
+    @Test
+    void budgetExceededExceptionShouldBeACheckedException() {
+        assertTrue(Exception.class.isAssignableFrom(BudgetExceededException.class),
+                "BudgetExceededException must extend Exception (checked).");
+        assertFalse(RuntimeException.class.isAssignableFrom(BudgetExceededException.class),
+                "BudgetExceededException must NOT be a RuntimeException -- budget enforcement is a checked contract.");
+    }
+
+    // --- Behavior (via MockContentGenerator) ---
+
+    @Test
+    void generateShouldReturnContentMatchingRequestTopic() throws BudgetExceededException {
+        ContentGenerator generator = new MockContentGenerator();
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 5.00);
+
+        GeneratedContent result = generator.generate(request);
+
+        assertNotNull(result.contentId(), "contentId must not be null.");
+        assertNotNull(result.script(), "script must not be null.");
+        assertNotNull(result.caption(), "caption must not be null.");
+        assertNotNull(result.targetPlatform(), "targetPlatform must not be null.");
+        assertTrue(result.script().contains("morning workout routine"),
+                "Script should reference the requested topic.");
+    }
+
+    @Test
+    void generateShouldThrowBudgetExceededForInsufficientBudget() {
+        ContentGenerator generator = new MockContentGenerator();
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 0.50);
+
+        assertThrows(BudgetExceededException.class, () -> generator.generate(request),
+                "generate() must throw BudgetExceededException when budget is insufficient.");
+    }
+}

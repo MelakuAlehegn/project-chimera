@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 /**
  * Request for generating content from a trend and persona context.
@@ -12,4 +12,3 @@ public record ContentGenerationRequest(
         double budget
 ) {
 }
-

@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 /**
  * Exception thrown when the Resource Governor determines that
@@ -18,4 +18,3 @@ public class BudgetExceededException extends Exception {
         super(message, cause);
     }
 }
-

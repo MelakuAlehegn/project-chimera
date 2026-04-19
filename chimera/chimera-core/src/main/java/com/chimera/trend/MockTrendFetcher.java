@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.trend;
 
 import java.util.List;
 

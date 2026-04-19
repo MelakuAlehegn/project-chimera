@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 /**
  * Mock implementation of ContentGenerator for development and testing.

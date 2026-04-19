@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 /**
  * Interface for the ContentGenerator skill.
@@ -11,4 +11,3 @@ public interface ContentGenerator {
 
     GeneratedContent generate(ContentGenerationRequest req) throws BudgetExceededException;
 }
-

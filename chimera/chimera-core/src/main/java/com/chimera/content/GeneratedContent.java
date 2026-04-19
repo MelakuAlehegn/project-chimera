@@ -1,4 +1,4 @@
-package com.chimera;
+package com.chimera.content;
 
 /**
  * Result of a content generation call.
@@ -12,4 +12,3 @@ public record GeneratedContent(
         String targetPlatform
 ) {
 }
-
