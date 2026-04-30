@@ -6,6 +6,7 @@ import com.chimera.content.ContentGenerator;
 import com.chimera.content.GeneratedContent;
 import com.chimera.persistence.RunHistory;
 import com.chimera.persistence.RunRecord;
+import com.chimera.policy.TrendSelector;
 import com.chimera.publisher.PlatformPublisher;
 import com.chimera.publisher.PublishRequest;
 import com.chimera.publisher.PublishResult;
@@ -36,19 +37,22 @@ public class ContentPipeline {
     private final ContentVerifier contentVerifier;
     private final PlatformPublisher publisher;
     private final RunHistory runHistory;
+    private final TrendSelector trendSelector;
 
     public ContentPipeline(
             TrendFetcher trendFetcher,
             ContentGenerator contentGenerator,
             ContentVerifier contentVerifier,
             PlatformPublisher publisher,
-            RunHistory runHistory
+            RunHistory runHistory,
+            TrendSelector trendSelector
     ) {
         this.trendFetcher = trendFetcher;
         this.contentGenerator = contentGenerator;
         this.contentVerifier = contentVerifier;
         this.publisher = publisher;
         this.runHistory = runHistory;
+        this.trendSelector = trendSelector;
     }
 
     public PipelineResult run(PipelineRequest goal) {
@@ -73,9 +77,12 @@ public class ContentPipeline {
         }
 
         // DECISION POINT: which trend do we pick?
-        // Today: the first one. Later: a Manager agent ranks by engagementScore,
-        //         novelty, alignment with persona, etc.
-        Trend selectedTrend = trendResponse.trends().get(0);
+        // Delegated to the injected TrendSelector policy.
+        Optional<Trend> selected = trendSelector.select(trendResponse.trends(), goal, runHistory);
+        if (selected.isEmpty()) {
+            return stopped("trend selector returned no choice (all trends already used?)");
+        }
+        Trend selectedTrend = selected.get();
 
         // === STEP 2: Generate content ===
         // ADAPTER: Trend + PipelineRequest -> ContentGenerationRequest
