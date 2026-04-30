@@ -6,7 +6,9 @@ import com.chimera.content.ContentGenerator;
 import com.chimera.content.GeneratedContent;
 import com.chimera.persistence.RunHistory;
 import com.chimera.persistence.RunRecord;
+import com.chimera.policy.BudgetPolicy;
 import com.chimera.policy.TrendSelector;
+import com.chimera.policy.VerdictPolicy;
 import com.chimera.publisher.PlatformPublisher;
 import com.chimera.publisher.PublishRequest;
 import com.chimera.publisher.PublishResult;
@@ -17,7 +19,6 @@ import com.chimera.trend.TrendResponse;
 import com.chimera.verifier.ContentVerifier;
 import com.chimera.verifier.VerificationRequest;
 import com.chimera.verifier.VerificationResult;
-import com.chimera.verifier.Verdict;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -27,8 +28,8 @@ import java.util.UUID;
  * Sequential pipeline that runs all four skills in order:
  *   trend -> generate -> verify -> publish
  *
- * This is intentionally "dumb": no ranking, no retries, no decisions.
- * Every comment marked DECISION POINT is where a real agent would think.
+ * Decisions are delegated to injected policies (TrendSelector, BudgetPolicy,
+ * VerdictPolicy). The pipeline itself is dumb glue: it only orchestrates.
  */
 public class ContentPipeline {
 
@@ -38,6 +39,8 @@ public class ContentPipeline {
     private final PlatformPublisher publisher;
     private final RunHistory runHistory;
     private final TrendSelector trendSelector;
+    private final BudgetPolicy budgetPolicy;
+    private final VerdictPolicy verdictPolicy;
 
     public ContentPipeline(
             TrendFetcher trendFetcher,
@@ -45,7 +48,9 @@ public class ContentPipeline {
             ContentVerifier contentVerifier,
             PlatformPublisher publisher,
             RunHistory runHistory,
-            TrendSelector trendSelector
+            TrendSelector trendSelector,
+            BudgetPolicy budgetPolicy,
+            VerdictPolicy verdictPolicy
     ) {
         this.trendFetcher = trendFetcher;
         this.contentGenerator = contentGenerator;
@@ -53,6 +58,8 @@ public class ContentPipeline {
         this.publisher = publisher;
         this.runHistory = runHistory;
         this.trendSelector = trendSelector;
+        this.budgetPolicy = budgetPolicy;
+        this.verdictPolicy = verdictPolicy;
     }
 
     public PipelineResult run(PipelineRequest goal) {
@@ -68,7 +75,6 @@ public class ContentPipeline {
 
     private PipelineResult doRun(PipelineRequest goal) {
         // === STEP 1: Fetch trends ===
-        // ADAPTER: PipelineRequest -> TrendRequest
         var trendRequest = new TrendRequest(goal.platform(), goal.category());
         TrendResponse trendResponse = trendFetcher.fetchTrends(trendRequest);
 
@@ -76,34 +82,34 @@ public class ContentPipeline {
             return stopped("no trends returned for " + goal.category());
         }
 
-        // DECISION POINT: which trend do we pick?
-        // Delegated to the injected TrendSelector policy.
+        // DECISION POINT: which trend? -> TrendSelector
         Optional<Trend> selected = trendSelector.select(trendResponse.trends(), goal, runHistory);
         if (selected.isEmpty()) {
             return stopped("trend selector returned no choice (all trends already used?)");
         }
         Trend selectedTrend = selected.get();
 
+        // DECISION POINT: budget approval -> BudgetPolicy
+        Optional<Double> approvedBudget = budgetPolicy.approve(goal.budget(), goal, runHistory);
+        if (approvedBudget.isEmpty()) {
+            return stoppedAfterTrend(selectedTrend, "budget policy denied request (cap exceeded?)");
+        }
+
         // === STEP 2: Generate content ===
-        // ADAPTER: Trend + PipelineRequest -> ContentGenerationRequest
         var contentRequest = new ContentGenerationRequest(
                 selectedTrend.topic(),
                 goal.characterReferenceId(),
-                goal.budget()
+                approvedBudget.get()
         );
 
         GeneratedContent generated;
         try {
             generated = contentGenerator.generate(contentRequest);
         } catch (BudgetExceededException e) {
-            // DECISION POINT: budget failure handling.
-            // Today: stop with reason. Later: agent could request more budget,
-            //         retry with a cheaper model, or escalate to human.
-            return stoppedAfterTrend(selectedTrend, "budget exceeded: " + e.getMessage());
+            return stoppedAfterTrend(selectedTrend, "budget exceeded at generator: " + e.getMessage());
         }
 
         // === STEP 3: Verify content ===
-        // ADAPTER: GeneratedContent -> VerificationRequest
         var verificationRequest = new VerificationRequest(
                 generated.contentId(),
                 generated.script(),
@@ -112,15 +118,12 @@ public class ContentPipeline {
         );
         VerificationResult verification = contentVerifier.verify(verificationRequest);
 
-        // DECISION POINT: what to do with the verdict?
-        // Today: only PUBLISH approves; everything else stops.
-        // Later: REVISE -> regenerate with feedback. REJECT -> abandon. APPROVE -> publish.
-        if (verification.verdict() != Verdict.APPROVE) {
+        // DECISION POINT: should we publish? -> VerdictPolicy
+        if (!verdictPolicy.shouldPublish(verification)) {
             return stoppedAfterVerification(selectedTrend, generated, verification);
         }
 
         // === STEP 4: Publish ===
-        // ADAPTER: GeneratedContent -> PublishRequest
         var publishRequest = new PublishRequest(
                 generated.contentId(),
                 generated.script(),
@@ -129,7 +132,6 @@ public class ContentPipeline {
         );
         PublishResult publishResult = publisher.publish(publishRequest);
 
-        // === Done ===
         return new PipelineResult(
                 Optional.of(selectedTrend),
                 Optional.of(generated),
@@ -161,7 +163,7 @@ public class ContentPipeline {
                 Optional.of(generated),
                 Optional.of(verification),
                 Optional.empty(),
-                Optional.of("verdict was " + verification.verdict() + ", pipeline only publishes APPROVE")
+                Optional.of("verdict policy rejected publish (verdict was " + verification.verdict() + ")")
         );
     }
 }
