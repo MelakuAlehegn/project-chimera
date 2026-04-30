@@ -1,6 +1,7 @@
 package com.chimera.orchestrator;
 
 import com.chimera.content.MockContentGenerator;
+import com.chimera.persistence.InMemoryRunHistory;
 import com.chimera.publisher.MockPlatformPublisher;
 import com.chimera.publisher.PublishStatus;
 import com.chimera.trend.MockTrendFetcher;
@@ -24,7 +25,8 @@ class ContentPipelineTest {
                 new MockTrendFetcher(),
                 new MockContentGenerator(),
                 new MockContentVerifier(),
-                new MockPlatformPublisher()
+                new MockPlatformPublisher(),
+                new InMemoryRunHistory()
         );
 
         var goal = new PipelineRequest("tiktok", "fitness", "fit_chimera_v1", 5.00);
@@ -42,15 +44,35 @@ class ContentPipelineTest {
     }
 
     @Test
+    void pipelineShouldRecordEveryRunInHistory() {
+        var history = new InMemoryRunHistory();
+        var pipeline = new ContentPipeline(
+                new MockTrendFetcher(),
+                new MockContentGenerator(),
+                new MockContentVerifier(),
+                new MockPlatformPublisher(),
+                history
+        );
+
+        pipeline.run(new PipelineRequest("tiktok", "fitness", "fit_chimera_v1", 5.00));
+        pipeline.run(new PipelineRequest("tiktok", "fitness", "fit_chimera_v1", 0.50));  // budget fail
+
+        assertEquals(2, history.findAll().size(),
+                "History should record both successful and failed runs.");
+        assertEquals(2, history.findByCategory("fitness").size(),
+                "Both fitness runs should be findable by category.");
+    }
+
+    @Test
     void pipelineShouldStopWhenBudgetIsInsufficient() {
         var pipeline = new ContentPipeline(
                 new MockTrendFetcher(),
                 new MockContentGenerator(),
                 new MockContentVerifier(),
-                new MockPlatformPublisher()
+                new MockPlatformPublisher(),
+                new InMemoryRunHistory()
         );
 
-        // Budget below the mock's 1.00 threshold triggers BudgetExceededException
         var goal = new PipelineRequest("tiktok", "fitness", "fit_chimera_v1", 0.50);
 
         PipelineResult result = pipeline.run(goal);

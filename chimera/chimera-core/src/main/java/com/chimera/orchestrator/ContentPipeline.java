@@ -4,6 +4,8 @@ import com.chimera.content.BudgetExceededException;
 import com.chimera.content.ContentGenerationRequest;
 import com.chimera.content.ContentGenerator;
 import com.chimera.content.GeneratedContent;
+import com.chimera.persistence.RunHistory;
+import com.chimera.persistence.RunRecord;
 import com.chimera.publisher.PlatformPublisher;
 import com.chimera.publisher.PublishRequest;
 import com.chimera.publisher.PublishResult;
@@ -16,7 +18,9 @@ import com.chimera.verifier.VerificationRequest;
 import com.chimera.verifier.VerificationResult;
 import com.chimera.verifier.Verdict;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Sequential pipeline that runs all four skills in order:
@@ -31,20 +35,34 @@ public class ContentPipeline {
     private final ContentGenerator contentGenerator;
     private final ContentVerifier contentVerifier;
     private final PlatformPublisher publisher;
+    private final RunHistory runHistory;
 
     public ContentPipeline(
             TrendFetcher trendFetcher,
             ContentGenerator contentGenerator,
             ContentVerifier contentVerifier,
-            PlatformPublisher publisher
+            PlatformPublisher publisher,
+            RunHistory runHistory
     ) {
         this.trendFetcher = trendFetcher;
         this.contentGenerator = contentGenerator;
         this.contentVerifier = contentVerifier;
         this.publisher = publisher;
+        this.runHistory = runHistory;
     }
 
     public PipelineResult run(PipelineRequest goal) {
+        PipelineResult result = doRun(goal);
+        runHistory.save(new RunRecord(
+                UUID.randomUUID().toString(),
+                Instant.now(),
+                goal,
+                result
+        ));
+        return result;
+    }
+
+    private PipelineResult doRun(PipelineRequest goal) {
         // === STEP 1: Fetch trends ===
         // ADAPTER: PipelineRequest -> TrendRequest
         var trendRequest = new TrendRequest(goal.platform(), goal.category());
