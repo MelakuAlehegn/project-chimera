@@ -71,6 +71,16 @@ public final class Config {
         return optional("DATABASE_PASSWORD", "");
     }
 
+    // --- Bluesky ---
+
+    public String blueskyHandle() {
+        return required("BLUESKY_HANDLE");
+    }
+
+    public String blueskyAppPassword() {
+        return required("BLUESKY_APP_PASSWORD");
+    }
+
     // --- internals ---
 
     private String required(String key) {
