@@ -99,7 +99,8 @@ public class ContentPipeline {
         var contentRequest = new ContentGenerationRequest(
                 selectedTrend.topic(),
                 goal.characterReferenceId(),
-                approvedBudget.get()
+                approvedBudget.get(),
+                goal.platform()
         );
 
         GeneratedContent generated;

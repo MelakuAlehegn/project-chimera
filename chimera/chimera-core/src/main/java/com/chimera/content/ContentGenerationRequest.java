@@ -9,6 +9,7 @@ package com.chimera.content;
 public record ContentGenerationRequest(
         String topic,
         String characterReferenceId,
-        double budget
+        double budget,
+        String targetPlatform
 ) {
 }

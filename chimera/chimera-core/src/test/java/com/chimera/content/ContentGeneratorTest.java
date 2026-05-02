@@ -93,14 +93,15 @@ class ContentGeneratorTest {
     @Test
     void generateShouldReturnContentMatchingRequestTopic() throws BudgetExceededException {
         ContentGenerator generator = new MockContentGenerator();
-        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 5.00);
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 5.00, "bluesky");
 
         GeneratedContent result = generator.generate(request);
 
         assertNotNull(result.contentId(), "contentId must not be null.");
         assertNotNull(result.script(), "script must not be null.");
         assertNotNull(result.caption(), "caption must not be null.");
-        assertNotNull(result.targetPlatform(), "targetPlatform must not be null.");
+        assertEquals("bluesky", result.targetPlatform(),
+                "targetPlatform should echo what was requested.");
         assertTrue(result.script().contains("morning workout routine"),
                 "Script should reference the requested topic.");
     }
@@ -108,7 +109,7 @@ class ContentGeneratorTest {
     @Test
     void generateShouldThrowBudgetExceededForInsufficientBudget() {
         ContentGenerator generator = new MockContentGenerator();
-        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 0.50);
+        var request = new ContentGenerationRequest("morning workout routine", "fit_chimera_v1", 0.50, "bluesky");
 
         assertThrows(BudgetExceededException.class, () -> generator.generate(request),
                 "generate() must throw BudgetExceededException when budget is insufficient.");

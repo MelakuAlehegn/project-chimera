@@ -25,7 +25,7 @@ public class MockContentGenerator implements ContentGenerator {
                         + "Main: Here's what you need to know...\n"
                         + "CTA: Follow for more tips!",
                 "Discover " + req.topic() + " today",
-                "tiktok"
+                req.targetPlatform()
         );
     }
 }
