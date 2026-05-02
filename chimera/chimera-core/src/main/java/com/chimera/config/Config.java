@@ -81,6 +81,37 @@ public final class Config {
         return required("BLUESKY_APP_PASSWORD");
     }
 
+    // --- Agent runtime ---
+
+    public String chimeraPlatform() {
+        return optional("CHIMERA_PLATFORM", "bluesky");
+    }
+
+    public String chimeraCategory() {
+        return optional("CHIMERA_CATEGORY", "fitness");
+    }
+
+    public String chimeraPersona() {
+        return optional("CHIMERA_PERSONA", "fit_chimera_v1");
+    }
+
+    public double chimeraBudget() {
+        return Double.parseDouble(optional("CHIMERA_BUDGET", "2.00"));
+    }
+
+    public double chimeraDailyCap() {
+        return Double.parseDouble(optional("CHIMERA_DAILY_CAP", "20.00"));
+    }
+
+    /** "once" or "loop". */
+    public String chimeraRunMode() {
+        return optional("CHIMERA_RUN_MODE", "once");
+    }
+
+    public int chimeraLoopIntervalMinutes() {
+        return Integer.parseInt(optional("CHIMERA_LOOP_INTERVAL_MINUTES", "60"));
+    }
+
     // --- internals ---
 
     private String required(String key) {
