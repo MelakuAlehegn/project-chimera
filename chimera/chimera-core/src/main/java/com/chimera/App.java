@@ -22,7 +22,7 @@ import com.chimera.publisher.PlatformPublisher;
 import com.chimera.trend.LlmTrendFetcher;
 import com.chimera.trend.TrendFetcher;
 import com.chimera.verifier.ContentVerifier;
-import com.chimera.verifier.MockContentVerifier;
+import com.chimera.verifier.LlmContentVerifier;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +48,7 @@ public class App {
 
         TrendFetcher trendFetcher = new LlmTrendFetcher(llm);
         ContentGenerator contentGenerator = new LlmContentGenerator(llm);
-        ContentVerifier contentVerifier = new MockContentVerifier();
+        ContentVerifier contentVerifier = new LlmContentVerifier(llm);
         PlatformPublisher publisher = new BlueskyPlatformPublisher(config);
 
         RunHistory runHistory = new PostgresRunHistory(dataSource);
