@@ -19,15 +19,15 @@ import com.chimera.policy.TrendSelector;
 import com.chimera.policy.VerdictPolicy;
 import com.chimera.publisher.BlueskyPlatformPublisher;
 import com.chimera.publisher.PlatformPublisher;
-import com.chimera.publisher.PublishResult;
 import com.chimera.trend.LlmTrendFetcher;
 import com.chimera.trend.TrendFetcher;
 import com.chimera.verifier.ContentVerifier;
 import com.chimera.verifier.MockContentVerifier;
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.time.Instant;
 
 /**
  * Entry point.
@@ -35,28 +35,22 @@ import java.time.Instant;
  * Composition root: builds every concrete implementation from Config and
  * wires them into a ContentPipeline. Then runs the pipeline either once
  * or in a loop (controlled by CHIMERA_RUN_MODE in .env).
- *
- * Two modes:
- *   - "once":  run one cycle, print result, exit. Ideal for testing.
- *   - "loop":  run every CHIMERA_LOOP_INTERVAL_MINUTES until interrupted.
- *             This is the autonomous mode -- the agent runs by itself.
  */
 public class App {
+
+    private static final Logger log = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws InterruptedException {
         Config config = Config.load();
 
-        // External clients
         LlmClient llm = new GeminiLlmClient(config);
         HikariDataSource dataSource = PostgresPool.create(config);
 
-        // Skills (4 of 5 are real LLM/HTTP-backed)
         TrendFetcher trendFetcher = new LlmTrendFetcher(llm);
         ContentGenerator contentGenerator = new LlmContentGenerator(llm);
         ContentVerifier contentVerifier = new MockContentVerifier();
         PlatformPublisher publisher = new BlueskyPlatformPublisher(config);
 
-        // State + policies
         RunHistory runHistory = new PostgresRunHistory(dataSource);
         TrendSelector trendSelector = new LlmTrendSelector(llm);
         BudgetPolicy budgetPolicy = new DailyCapBudgetPolicy(config.chimeraDailyCap());
@@ -86,47 +80,42 @@ public class App {
     }
 
     private static void runOnce(ContentPipeline pipeline, PipelineRequest goal) {
-        System.out.println("== Chimera: single run @ " + Instant.now() + " ==");
-        System.out.println("Goal: " + goal);
+        log.info("Chimera starting: single run, goal={}", goal);
         PipelineResult result = pipeline.run(goal);
-        printResult(result);
+        logResult(result);
     }
 
     private static void runLoop(ContentPipeline pipeline, PipelineRequest goal, int intervalMinutes)
             throws InterruptedException {
-        System.out.println("== Chimera: loop mode, every " + intervalMinutes + "m ==");
-        System.out.println("Goal: " + goal);
-        System.out.println("(Ctrl+C to stop)\n");
+        log.info("Chimera starting: loop mode every {} minutes, goal={}", intervalMinutes, goal);
 
         while (true) {
-            System.out.println("\n-- run @ " + Instant.now() + " --");
             try {
                 PipelineResult result = pipeline.run(goal);
-                printResult(result);
+                logResult(result);
             } catch (Exception e) {
-                // Never crash the loop on a single failed run -- log and continue.
-                System.err.println("Run failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                // Never crash the loop on a single failed run.
+                log.error("Run failed", e);
             }
+            log.info("Sleeping {} minutes until next run", intervalMinutes);
             Thread.sleep(Duration.ofMinutes(intervalMinutes).toMillis());
         }
     }
 
-    private static void printResult(PipelineResult result) {
+    private static void logResult(PipelineResult result) {
         result.selectedTrend().ifPresent(t ->
-                System.out.println("Trend:  " + t.topic() + " (" + t.engagementScore() + ")"));
+                log.info("Trend selected: {} (engagement={})", t.topic(), t.engagementScore()));
         result.generatedContent().ifPresent(c -> {
-            System.out.println("Caption: " + c.caption());
-            System.out.println("Script:");
-            System.out.println(c.script());
+            log.info("Caption: {}", c.caption());
+            log.info("Script:\n{}", c.script());
         });
         result.verificationResult().ifPresent(v ->
-                System.out.println("Verdict: " + v.verdict()));
+                log.info("Verdict: {}", v.verdict()));
         result.publishResult().ifPresent(p -> {
-            System.out.println("Publish: " + p.status());
-            p.platformPostId().ifPresent(id -> System.out.println("Post URI: " + id));
-            PublishResult pr = p; // satisfy linter
-            pr.error().ifPresent(err -> System.out.println("Error: " + err));
+            log.info("Publish status: {}", p.status());
+            p.platformPostId().ifPresent(id -> log.info("Post URI: {}", id));
+            p.error().ifPresent(err -> log.warn("Publish error: {}", err));
         });
-        result.stoppedReason().ifPresent(r -> System.out.println("Stopped: " + r));
+        result.stoppedReason().ifPresent(r -> log.warn("Pipeline stopped: {}", r));
     }
 }
