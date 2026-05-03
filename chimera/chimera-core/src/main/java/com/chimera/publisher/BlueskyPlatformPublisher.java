@@ -4,6 +4,8 @@ import com.chimera.config.Config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -33,6 +35,7 @@ public class BlueskyPlatformPublisher implements PlatformPublisher {
     private static final int MAX_POST_LENGTH = 300;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(BlueskyPlatformPublisher.class);
 
     private final HttpClient http;
     private final String handle;
@@ -48,9 +51,11 @@ public class BlueskyPlatformPublisher implements PlatformPublisher {
 
     @Override
     public PublishResult publish(PublishRequest request) {
+        log.info("Publisher: posting to Bluesky as @{}", handle);
         try {
             Session session = login();
             String postUri = createPost(session, truncate(request.caption()));
+            log.info("Publisher: posted successfully ({})", postUri);
             return new PublishResult(
                     request.contentId(),
                     request.targetPlatform(),
@@ -60,6 +65,7 @@ public class BlueskyPlatformPublisher implements PlatformPublisher {
                     Optional.empty()
             );
         } catch (Exception e) {
+            log.warn("Publisher: post failed: {}", e.getMessage());
             return new PublishResult(
                     request.contentId(),
                     request.targetPlatform(),

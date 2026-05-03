@@ -3,6 +3,8 @@ package com.chimera.agent;
 import com.chimera.verifier.ContentVerifier;
 import com.chimera.verifier.VerificationRequest;
 import com.chimera.verifier.VerificationResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Judge implementation that delegates evaluation to a ContentVerifier.
@@ -14,6 +16,8 @@ import com.chimera.verifier.VerificationResult;
  */
 public class ContentJudge implements Judge {
 
+    private static final Logger log = LoggerFactory.getLogger(ContentJudge.class);
+
     private final ContentVerifier verifier;
 
     public ContentJudge(ContentVerifier verifier) {
@@ -22,11 +26,15 @@ public class ContentJudge implements Judge {
 
     @Override
     public VerificationResult evaluate(Candidate candidate) {
-        return verifier.verify(new VerificationRequest(
+        log.info("Judge: evaluating candidate (contentId={})", candidate.content().contentId());
+        VerificationResult result = verifier.verify(new VerificationRequest(
                 candidate.content().contentId(),
                 candidate.content().script(),
                 candidate.content().caption(),
                 candidate.content().targetPlatform()
         ));
+        log.info("Judge: verdict={} (safetyScore={}, {} issue(s))",
+                result.verdict(), result.safetyScore(), result.issues().size());
+        return result;
     }
 }

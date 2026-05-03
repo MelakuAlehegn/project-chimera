@@ -80,7 +80,7 @@ public class ContentManager implements Manager {
         int errored = 0;
 
         for (int i = 0; i < targetPostsPerRun; i++) {
-            log.info("Cycle {}/{}", i + 1, targetPostsPerRun);
+            log.info("=== Cycle {}/{} ===", i + 1, targetPostsPerRun);
             ManagerResult.CycleTrace trace = runOneCycle(goal);
             cycles.add(trace);
 
@@ -88,10 +88,16 @@ public class ContentManager implements Manager {
                     && trace.publishResult().get().status()
                     == com.chimera.publisher.PublishStatus.PUBLISHED) {
                 published++;
+                log.info("Cycle {}: PUBLISHED ({} revisions used)",
+                        i + 1, trace.revisionsUsed());
             } else if (trace.candidate().isPresent() && trace.publishResult().isEmpty()) {
                 rejected++;
+                log.info("Cycle {}: REJECTED ({})", i + 1,
+                        trace.stoppedReason().orElse("no reason"));
             } else {
                 errored++;
+                log.info("Cycle {}: SKIPPED ({})", i + 1,
+                        trace.stoppedReason().orElse("no reason"));
             }
 
             // Save every cycle to memory, success or not.

@@ -4,6 +4,8 @@ import com.chimera.config.Config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,6 +29,7 @@ public class GeminiLlmClient implements LlmClient {
             "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(GeminiLlmClient.class);
 
     private final HttpClient http;
     private final String apiKey;
@@ -52,15 +55,22 @@ public class GeminiLlmClient implements LlmClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
+        long startMs = System.currentTimeMillis();
+        log.info("Calling LLM ({} prompt chars, model={})", prompt.length(), model);
+
         try {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            long elapsedMs = System.currentTimeMillis() - startMs;
 
             if (response.statusCode() != 200) {
+                log.warn("LLM call failed in {}ms: HTTP {}", elapsedMs, response.statusCode());
                 throw new IllegalStateException(
                         "Gemini returned HTTP " + response.statusCode() + ": " + response.body());
             }
 
-            return extractText(response.body());
+            String text = extractText(response.body());
+            log.info("LLM responded in {}ms ({} chars)", elapsedMs, text.length());
+            return text;
 
         } catch (IOException e) {
             throw new IllegalStateException(
