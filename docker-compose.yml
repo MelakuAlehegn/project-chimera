@@ -1,0 +1,47 @@
+# Chimera local stack: PostgreSQL + the agent app.
+#
+# Run:
+#   make docker-up        # bring everything up (builds the app image first)
+#   make docker-logs      # tail the agent's logs
+#   make docker-down      # stop and remove containers
+#
+# Reads secrets (GEMINI_API_KEY, BLUESKY_*) from your local .env file.
+# Postgres credentials are baked into compose so the stack is self-contained.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chimera
+      POSTGRES_PASSWORD: chimera
+      POSTGRES_DB: chimera_dev
+    volumes:
+      - chimera-db-data:/var/lib/postgresql/data
+      # Postgres image auto-runs any *.sql in this directory on first init.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chimera -d chimera_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    # Pull non-secret runtime defaults from .env on the host.
+    env_file:
+      - .env
+    # Override database connection -- inside the docker network, postgres
+    # is reachable as 'db', not 'localhost'. These vars override anything
+    # in .env because dotenv-java prefers system env over .env values.
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/chimera_dev
+      DATABASE_USER: chimera
+      DATABASE_PASSWORD: chimera
+
+volumes:
+  chimera-db-data:

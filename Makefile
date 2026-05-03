@@ -1,4 +1,4 @@
-.PHONY: setup test lint build run run-loop spec-check docker-test help
+.PHONY: setup test lint build run run-loop spec-check docker-up docker-down docker-logs docker-test help
 
 MVN=mvn
 CORE_POM=chimera/chimera-core/pom.xml
@@ -26,9 +26,14 @@ run-loop:
 spec-check:
 	@bash scripts/spec-check.sh
 
-docker-test:
-	docker build -t chimera-test .
-	docker run --rm chimera-test
+docker-up:
+	docker compose up --build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f app
 
 help:
 	@echo "Available commands:"
@@ -36,9 +41,11 @@ help:
 	@echo "  make test        - mvn test for chimera-core"
 	@echo "  make lint        - mvn checkstyle:check for chimera-core"
 	@echo "  make build       - mvn package -DskipTests for chimera-core"
-	@echo "  make run         - run one pipeline cycle (real APIs, real post)"
-	@echo "  make run-loop    - run continuously every CHIMERA_LOOP_INTERVAL_MINUTES"
+	@echo "  make run         - run one cycle locally (real APIs, real post)"
+	@echo "  make run-loop    - run continuously locally"
 	@echo "  make spec-check  - verify code aligns with specs/"
-	@echo "  make docker-test - build and run tests inside Docker"
+	@echo "  make docker-up   - build images and start stack (db + app)"
+	@echo "  make docker-down - stop and remove the stack"
+	@echo "  make docker-logs - follow the app container logs"
 	@echo "  make help        - show this help message"
 
