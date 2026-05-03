@@ -112,6 +112,14 @@ public final class Config {
         return Integer.parseInt(optional("CHIMERA_LOOP_INTERVAL_MINUTES", "60"));
     }
 
+    public int chimeraPostsPerRun() {
+        return Integer.parseInt(optional("CHIMERA_POSTS_PER_RUN", "1"));
+    }
+
+    public int chimeraMaxRevisions() {
+        return Integer.parseInt(optional("CHIMERA_MAX_REVISIONS", "1"));
+    }
+
     // --- internals ---
 
     private String required(String key) {

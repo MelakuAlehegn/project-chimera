@@ -1,13 +1,18 @@
 package com.chimera;
 
+import com.chimera.agent.ContentJudge;
+import com.chimera.agent.ContentManager;
+import com.chimera.agent.ContentWorker;
+import com.chimera.agent.Judge;
+import com.chimera.agent.Manager;
+import com.chimera.agent.ManagerResult;
+import com.chimera.agent.Worker;
 import com.chimera.config.Config;
 import com.chimera.content.ContentGenerator;
 import com.chimera.content.LlmContentGenerator;
 import com.chimera.llm.GeminiLlmClient;
 import com.chimera.llm.LlmClient;
-import com.chimera.orchestrator.ContentPipeline;
 import com.chimera.orchestrator.PipelineRequest;
-import com.chimera.orchestrator.PipelineResult;
 import com.chimera.persistence.PostgresPool;
 import com.chimera.persistence.PostgresRunHistory;
 import com.chimera.persistence.RunHistory;
@@ -30,11 +35,12 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 
 /**
- * Entry point.
+ * Entry point and composition root.
  *
- * Composition root: builds every concrete implementation from Config and
- * wires them into a ContentPipeline. Then runs the pipeline either once
- * or in a loop (controlled by CHIMERA_RUN_MODE in .env).
+ * Wires every concrete implementation from Config, then drives a Manager
+ * agent. Two run modes (CHIMERA_RUN_MODE):
+ *   - "once": one Manager.run() and exit
+ *   - "loop": Manager.run() every CHIMERA_LOOP_INTERVAL_MINUTES forever
  */
 public class App {
 
@@ -43,22 +49,30 @@ public class App {
     public static void main(String[] args) throws InterruptedException {
         Config config = Config.load();
 
+        // External clients
         LlmClient llm = new GeminiLlmClient(config);
         HikariDataSource dataSource = PostgresPool.create(config);
 
+        // Skills
         TrendFetcher trendFetcher = new LlmTrendFetcher(llm);
         ContentGenerator contentGenerator = new LlmContentGenerator(llm);
         ContentVerifier contentVerifier = new LlmContentVerifier(llm);
         PlatformPublisher publisher = new BlueskyPlatformPublisher(config);
 
+        // Memory + policies
         RunHistory runHistory = new PostgresRunHistory(dataSource);
         TrendSelector trendSelector = new LlmTrendSelector(llm);
         BudgetPolicy budgetPolicy = new DailyCapBudgetPolicy(config.chimeraDailyCap());
         VerdictPolicy verdictPolicy = new StrictVerdictPolicy();
 
-        ContentPipeline pipeline = new ContentPipeline(
-                trendFetcher, contentGenerator, contentVerifier, publisher,
-                runHistory, trendSelector, budgetPolicy, verdictPolicy
+        // Agents
+        Worker worker = new ContentWorker(trendFetcher, trendSelector, contentGenerator, runHistory);
+        Judge judge = new ContentJudge(contentVerifier);
+        Manager manager = new ContentManager(
+                worker, judge, publisher,
+                budgetPolicy, verdictPolicy, runHistory,
+                config.chimeraPostsPerRun(),
+                config.chimeraMaxRevisions()
         );
 
         PipelineRequest goal = new PipelineRequest(
@@ -70,52 +84,54 @@ public class App {
 
         try {
             if ("loop".equalsIgnoreCase(config.chimeraRunMode())) {
-                runLoop(pipeline, goal, config.chimeraLoopIntervalMinutes());
+                runLoop(manager, goal, config.chimeraLoopIntervalMinutes());
             } else {
-                runOnce(pipeline, goal);
+                runOnce(manager, goal);
             }
         } finally {
             dataSource.close();
         }
     }
 
-    private static void runOnce(ContentPipeline pipeline, PipelineRequest goal) {
-        log.info("Chimera starting: single run, goal={}", goal);
-        PipelineResult result = pipeline.run(goal);
+    private static void runOnce(Manager manager, PipelineRequest goal) {
+        log.info("Chimera starting: single Manager run, goal={}", goal);
+        ManagerResult result = manager.run(goal);
         logResult(result);
     }
 
-    private static void runLoop(ContentPipeline pipeline, PipelineRequest goal, int intervalMinutes)
+    private static void runLoop(Manager manager, PipelineRequest goal, int intervalMinutes)
             throws InterruptedException {
         log.info("Chimera starting: loop mode every {} minutes, goal={}", intervalMinutes, goal);
 
         while (true) {
             try {
-                PipelineResult result = pipeline.run(goal);
+                ManagerResult result = manager.run(goal);
                 logResult(result);
             } catch (Exception e) {
-                // Never crash the loop on a single failed run.
-                log.error("Run failed", e);
+                log.error("Manager run failed", e);
             }
             log.info("Sleeping {} minutes until next run", intervalMinutes);
             Thread.sleep(Duration.ofMinutes(intervalMinutes).toMillis());
         }
     }
 
-    private static void logResult(PipelineResult result) {
-        result.selectedTrend().ifPresent(t ->
-                log.info("Trend selected: {} (engagement={})", t.topic(), t.engagementScore()));
-        result.generatedContent().ifPresent(c -> {
-            log.info("Caption: {}", c.caption());
-            log.info("Script:\n{}", c.script());
-        });
-        result.verificationResult().ifPresent(v ->
-                log.info("Verdict: {}", v.verdict()));
-        result.publishResult().ifPresent(p -> {
-            log.info("Publish status: {}", p.status());
-            p.platformPostId().ifPresent(id -> log.info("Post URI: {}", id));
-            p.error().ifPresent(err -> log.warn("Publish error: {}", err));
-        });
-        result.stoppedReason().ifPresent(r -> log.warn("Pipeline stopped: {}", r));
+    private static void logResult(ManagerResult result) {
+        log.info("Manager result: requested={}, published={}, rejected={}, errored={}",
+                result.requested(), result.published(), result.rejected(), result.errored());
+        for (int i = 0; i < result.cycles().size(); i++) {
+            ManagerResult.CycleTrace cycle = result.cycles().get(i);
+            log.info("--- cycle {} ---", i + 1);
+            cycle.candidate().ifPresent(c ->
+                    log.info("Trend: {} (engagement={})",
+                            c.selectedTrend().topic(), c.selectedTrend().engagementScore()));
+            cycle.candidate().ifPresent(c -> log.info("Caption: {}", c.content().caption()));
+            cycle.verification().ifPresent(v ->
+                    log.info("Verdict: {} (revisions used: {})", v.verdict(), cycle.revisionsUsed()));
+            cycle.publishResult().ifPresent(p -> {
+                log.info("Publish: {}", p.status());
+                p.platformPostId().ifPresent(id -> log.info("Post URI: {}", id));
+            });
+            cycle.stoppedReason().ifPresent(r -> log.warn("Stopped: {}", r));
+        }
     }
 }
