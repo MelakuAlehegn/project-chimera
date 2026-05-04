@@ -1,6 +1,7 @@
 package com.chimera.llm;
 
 import com.chimera.config.Config;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * This test costs real (free-tier) API quota and is slow (~1-3 seconds).
  * Skipped automatically on CI environments where the API key isn't set.
  */
+@Tag("integration")
 class GeminiLlmClientIntegrationTest {
 
     @Test

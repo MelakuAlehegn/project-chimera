@@ -1,4 +1,4 @@
-.PHONY: setup test lint build run run-loop spec-check docker-up docker-down docker-logs docker-test help
+.PHONY: setup test test-unit lint build run run-loop spec-check docker-up docker-down docker-logs docker-test help
 
 MVN=mvn
 CORE_POM=chimera/chimera-core/pom.xml
@@ -8,6 +8,10 @@ setup:
 
 test:
 	$(MVN) -f $(CORE_POM) test
+
+# CI-friendly: skips tests tagged @Tag("integration") (Postgres, Gemini, Bluesky, MCP).
+test-unit:
+	$(MVN) -f $(CORE_POM) test -DexcludedGroups=integration
 
 lint:
 	$(MVN) -f $(CORE_POM) checkstyle:check
@@ -38,7 +42,8 @@ docker-logs:
 help:
 	@echo "Available commands:"
 	@echo "  make setup       - mvn clean install -DskipTests for chimera-core"
-	@echo "  make test        - mvn test for chimera-core"
+	@echo "  make test        - run all tests (incl. integration; needs .env, Postgres, Node)"
+	@echo "  make test-unit   - run unit tests only (CI uses this)"
 	@echo "  make lint        - mvn checkstyle:check for chimera-core"
 	@echo "  make build       - mvn package -DskipTests for chimera-core"
 	@echo "  make run         - run one cycle locally (real APIs, real post)"

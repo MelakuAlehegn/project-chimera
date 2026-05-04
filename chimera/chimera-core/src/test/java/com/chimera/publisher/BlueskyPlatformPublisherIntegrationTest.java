@@ -1,6 +1,7 @@
 package com.chimera.publisher;
 
 import com.chimera.config.Config;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Side effect: creates a real public post you can see (and delete) on bsky.app.
  * The post text includes the run timestamp so duplicate runs are visibly distinct.
  */
+@Tag("integration")
 class BlueskyPlatformPublisherIntegrationTest {
 
     @Test

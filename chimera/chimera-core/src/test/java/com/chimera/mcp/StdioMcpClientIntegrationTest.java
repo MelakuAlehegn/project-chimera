@@ -3,6 +3,7 @@ package com.chimera.mcp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Each test method gets a fresh temp directory so state doesn't leak.
  */
+@Tag("integration")
 class StdioMcpClientIntegrationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

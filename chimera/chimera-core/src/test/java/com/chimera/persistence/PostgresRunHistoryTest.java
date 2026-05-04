@@ -9,6 +9,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -29,6 +30,7 @@ import java.util.UUID;
  *
  * TRUNCATEs run_history before each test method. Use only against a dev DB.
  */
+@Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresRunHistoryTest {
 
