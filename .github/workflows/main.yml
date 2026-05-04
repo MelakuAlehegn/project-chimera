@@ -36,5 +36,14 @@ jobs:
         run: make lint
 
       - name: Run unit tests
+        # Placeholder env vars so Config.load() succeeds in unit tests.
+        # No real services are called -- integration tests are skipped.
+        env:
+          GEMINI_API_KEY: ci-placeholder
+          DATABASE_URL: jdbc:postgresql://localhost:5432/none
+          DATABASE_USER: none
+          DATABASE_PASSWORD: none
+          BLUESKY_HANDLE: none
+          BLUESKY_APP_PASSWORD: none
         run: make test-unit
 

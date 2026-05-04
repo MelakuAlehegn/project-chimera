@@ -2,6 +2,7 @@ package com.chimera.content;
 
 import com.chimera.config.Config;
 import com.chimera.llm.GeminiLlmClient;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * free-tier quota. Verifies that the prompt + response shape work
  * end-to-end with a real LLM.
  */
+@Tag("integration")
 class LlmContentGeneratorIntegrationTest {
 
     @Test
