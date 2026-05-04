@@ -45,6 +45,7 @@ public class ContentManager implements Manager {
     private final BudgetPolicy budgetPolicy;
     private final VerdictPolicy verdictPolicy;
     private final RunHistory runHistory;
+    private final DraftStore draftStore;
 
     private final int targetPostsPerRun;
     private final int maxRevisionsPerPost;
@@ -56,6 +57,7 @@ public class ContentManager implements Manager {
             BudgetPolicy budgetPolicy,
             VerdictPolicy verdictPolicy,
             RunHistory runHistory,
+            DraftStore draftStore,
             int targetPostsPerRun,
             int maxRevisionsPerPost
     ) {
@@ -65,6 +67,7 @@ public class ContentManager implements Manager {
         this.budgetPolicy = budgetPolicy;
         this.verdictPolicy = verdictPolicy;
         this.runHistory = runHistory;
+        this.draftStore = draftStore;
         this.targetPostsPerRun = targetPostsPerRun;
         this.maxRevisionsPerPost = maxRevisionsPerPost;
     }
@@ -84,24 +87,29 @@ public class ContentManager implements Manager {
             ManagerResult.CycleTrace trace = runOneCycle(goal);
             cycles.add(trace);
 
+            String outcome;
             if (trace.publishResult().isPresent()
                     && trace.publishResult().get().status()
                     == com.chimera.publisher.PublishStatus.PUBLISHED) {
                 published++;
+                outcome = "PUBLISHED";
                 log.info("Cycle {}: PUBLISHED ({} revisions used)",
                         i + 1, trace.revisionsUsed());
             } else if (trace.candidate().isPresent() && trace.publishResult().isEmpty()) {
                 rejected++;
+                outcome = "REJECTED";
                 log.info("Cycle {}: REJECTED ({})", i + 1,
                         trace.stoppedReason().orElse("no reason"));
             } else {
                 errored++;
+                outcome = "SKIPPED";
                 log.info("Cycle {}: SKIPPED ({})", i + 1,
                         trace.stoppedReason().orElse("no reason"));
             }
 
-            // Save every cycle to memory, success or not.
+            // Side effects: durable memory + reviewable draft on disk.
             runHistory.save(toRunRecord(goal, trace));
+            trace.candidate().ifPresent(c -> draftStore.save(c, outcome));
         }
 
         log.info("Manager done: requested={}, published={}, rejected={}, errored={}",

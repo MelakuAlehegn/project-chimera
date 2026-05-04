@@ -120,6 +120,17 @@ public final class Config {
         return Integer.parseInt(optional("CHIMERA_MAX_REVISIONS", "1"));
     }
 
+    // --- MCP integration ---
+
+    /** "true" or "false". When true, Manager saves drafts to disk via the MCP filesystem server. */
+    public boolean mcpDraftsEnabled() {
+        return Boolean.parseBoolean(optional("CHIMERA_MCP_DRAFTS", "false"));
+    }
+
+    public String mcpDraftsDir() {
+        return optional("CHIMERA_DRAFTS_DIR", "/tmp/chimera-drafts");
+    }
+
     // --- internals ---
 
     private String required(String key) {

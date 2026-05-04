@@ -128,6 +128,7 @@ class ContentManagerTest {
                 new NaiveBudgetPolicy(),
                 new StrictVerdictPolicy(),
                 history,
+                DraftStore.NONE,
                 targetPosts, maxRevisions
         );
     }

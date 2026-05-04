@@ -3,15 +3,19 @@ package com.chimera;
 import com.chimera.agent.ContentJudge;
 import com.chimera.agent.ContentManager;
 import com.chimera.agent.ContentWorker;
+import com.chimera.agent.DraftStore;
 import com.chimera.agent.Judge;
 import com.chimera.agent.Manager;
 import com.chimera.agent.ManagerResult;
+import com.chimera.agent.McpDraftStore;
 import com.chimera.agent.Worker;
 import com.chimera.config.Config;
 import com.chimera.content.ContentGenerator;
 import com.chimera.content.LlmContentGenerator;
 import com.chimera.llm.GeminiLlmClient;
 import com.chimera.llm.LlmClient;
+import com.chimera.mcp.McpClient;
+import com.chimera.mcp.StdioMcpClient;
 import com.chimera.orchestrator.PipelineRequest;
 import com.chimera.persistence.PostgresPool;
 import com.chimera.persistence.PostgresRunHistory;
@@ -33,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Entry point and composition root.
@@ -65,12 +70,20 @@ public class App {
         BudgetPolicy budgetPolicy = new DailyCapBudgetPolicy(config.chimeraDailyCap());
         VerdictPolicy verdictPolicy = new StrictVerdictPolicy();
 
+        // Optional MCP integration: filesystem server for saving drafts.
+        McpClient mcpClient = config.mcpDraftsEnabled()
+                ? startFilesystemMcp(config.mcpDraftsDir())
+                : null;
+        DraftStore draftStore = mcpClient != null
+                ? new McpDraftStore(mcpClient, config.mcpDraftsDir())
+                : DraftStore.NONE;
+
         // Agents
         Worker worker = new ContentWorker(trendFetcher, trendSelector, contentGenerator, runHistory);
         Judge judge = new ContentJudge(contentVerifier);
         Manager manager = new ContentManager(
                 worker, judge, publisher,
-                budgetPolicy, verdictPolicy, runHistory,
+                budgetPolicy, verdictPolicy, runHistory, draftStore,
                 config.chimeraPostsPerRun(),
                 config.chimeraMaxRevisions()
         );
@@ -89,8 +102,24 @@ public class App {
                 runOnce(manager, goal);
             }
         } finally {
+            if (mcpClient != null) {
+                mcpClient.close();
+            }
             dataSource.close();
         }
+    }
+
+    /**
+     * Start the official filesystem MCP server pointing at the drafts dir.
+     * Requires Node + npx on PATH; the package is fetched on first run.
+     */
+    private static McpClient startFilesystemMcp(String allowedDir) {
+        log.info("Starting MCP filesystem server, allowed dir={}", allowedDir);
+        var client = new StdioMcpClient(List.of(
+                "npx", "-y", "@modelcontextprotocol/server-filesystem", allowedDir
+        ));
+        client.initialize();
+        return client;
     }
 
     private static void runOnce(Manager manager, PipelineRequest goal) {
